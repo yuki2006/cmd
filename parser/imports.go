@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/revel/cmd/utils"
+	"github.com/yuki2006/cmd/utils"
 )
 
 // Add imports to the map from the source dir.

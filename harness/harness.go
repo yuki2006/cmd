@@ -5,10 +5,10 @@
 // Package harness for a Revel Framework.
 //
 // It has a following responsibilities:
-// 1. Parse the user program, generating a main.go file that registers
-//    controller classes and starts the user's server.
-// 2. Build and run the user program.  Show compile errors.
-// 3. Monitor the user source and re-build / restart the program when necessary.
+//  1. Parse the user program, generating a main.go file that registers
+//     controller classes and starts the user's server.
+//  2. Build and run the user program.  Show compile errors.
+//  3. Monitor the user source and re-build / restart the program when necessary.
 //
 // Source files are generated in the app/tmp directory.
 package harness
@@ -34,9 +34,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
-	"github.com/revel/cmd/watcher"
+	"github.com/yuki2006/cmd/model"
+	"github.com/yuki2006/cmd/utils"
+	"github.com/yuki2006/cmd/watcher"
 )
 
 var (

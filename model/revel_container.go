@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/revel/cmd/utils"
 	"github.com/revel/config"
+	"github.com/yuki2006/cmd/utils"
 	"golang.org/x/tools/go/packages"
 )
 

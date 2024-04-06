@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/revel/cmd/logger"
 	"github.com/revel/config"
+	"github.com/yuki2006/cmd/logger"
 )
 
 var Logger = logger.New()

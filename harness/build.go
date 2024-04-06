@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/parser"
-	"github.com/revel/cmd/parser2"
-	"github.com/revel/cmd/utils"
+	"github.com/yuki2006/cmd/model"
+	"github.com/yuki2006/cmd/parser"
+	"github.com/yuki2006/cmd/parser2"
+	"github.com/yuki2006/cmd/utils"
 )
 
 var importErrorPattern = regexp.MustCompile("cannot find package \"([^\"]+)\"")
@@ -264,9 +264,10 @@ func Build(c *model.CommandConfig, paths *model.RevelContainer) (_ *App, err err
 
 // Try to define a version string for the compiled app
 // The following is tried (first match returns):
-// - Read a version explicitly specified in the APP_VERSION environment
-//   variable
-// - Read the output of "git describe" if the source is in a git repository
+//   - Read a version explicitly specified in the APP_VERSION environment
+//     variable
+//   - Read the output of "git describe" if the source is in a git repository
+//
 // If no version can be determined, an empty string is returned.
 func getAppVersion(paths *model.RevelContainer) string {
 	if version := os.Getenv("APP_VERSION"); version != "" {

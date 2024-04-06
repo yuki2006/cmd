@@ -29,11 +29,11 @@ install:
   # Since travis already checks out go build the commandline tool (revel)
   - mkdir $HOME/GOPATH_PROTECTED
   - export GOPATH=$HOME/GOPATH_PROTECTED
-  - go build -o $HOME/gopath/bin/revel github.com/revel/cmd/revel
+  - go build -o $HOME/gopath/bin/revel github.com/yuki2006/cmd/revel
   - pwd
   - env
 script:
-  - go test -v github.com/revel/cmd/revel/...
+  - go test -v github.com/yuki2006/cmd/revel/...
 
   # Ensure the new-app flow works (plus the other commands).
   #- revel version

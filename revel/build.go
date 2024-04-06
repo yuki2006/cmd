@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/revel/cmd/harness"
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
+	"github.com/yuki2006/cmd/harness"
+	"github.com/yuki2006/cmd/model"
+	"github.com/yuki2006/cmd/utils"
 )
 
 var cmdBuild = &Command{

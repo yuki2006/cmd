@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/revel/cmd/model"
-	main "github.com/revel/cmd/revel"
 	"github.com/stretchr/testify/assert"
+	"github.com/yuki2006/cmd/model"
+	main "github.com/yuki2006/cmd/revel"
 )
 
 // test the commands.

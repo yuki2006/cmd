@@ -17,9 +17,9 @@ import (
 
 	"github.com/agtorre/gocolorize"
 	"github.com/jessevdk/go-flags"
-	"github.com/revel/cmd/logger"
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
+	"github.com/yuki2006/cmd/logger"
+	"github.com/yuki2006/cmd/model"
+	"github.com/yuki2006/cmd/utils"
 )
 
 // Error is used for constant errors.

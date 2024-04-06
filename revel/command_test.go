@@ -7,10 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/revel/cmd/logger"
-	"github.com/revel/cmd/model"
-	"github.com/revel/cmd/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/yuki2006/cmd/logger"
+	"github.com/yuki2006/cmd/model"
+	"github.com/yuki2006/cmd/utils"
 )
 
 // Test that the event handler can be attached and it dispatches the event received.

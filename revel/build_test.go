@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/revel/cmd/model"
-	main "github.com/revel/cmd/revel"
-	"github.com/revel/cmd/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/yuki2006/cmd/model"
+	main "github.com/yuki2006/cmd/revel"
+	"github.com/yuki2006/cmd/utils"
 )
 
 // test the commands.

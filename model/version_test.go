@@ -3,8 +3,8 @@ package model_test
 import (
 	"testing"
 
-	"github.com/revel/cmd/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/yuki2006/cmd/model"
 )
 
 var versionTests = [][]string{
