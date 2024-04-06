@@ -97,6 +97,9 @@ func main() {
 		utils.InitLogger(wd, logger.LvlWarn)
 	}
 
+	// Setup package resolver
+	c.InitPackageResolver()
+
 	if err := c.UpdateImportPath(); err != nil {
 		utils.Logger.Error(err.Error())
 		parser.WriteHelp(os.Stdout)
