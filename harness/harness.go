@@ -40,7 +40,7 @@ import (
 )
 
 var (
-	doNotWatch = []string{"tmp", "views", "routes"}
+	doNotWatch = []string{"tmp"}
 
 	lastRequestHadError int32
 	startupError        int32
@@ -290,15 +290,48 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 }
 
 // WatchDir method returns false to file matches with doNotWatch
+// or if watch.templates=false and dir is "views"
 // otheriwse true.
 func (h *Harness) WatchDir(info os.FileInfo) bool {
-	return !utils.ContainsString(doNotWatch, info.Name())
+	// Always exclude directories in doNotWatch
+	if utils.ContainsString(doNotWatch, info.Name()) {
+		return false
+	}
+
+	// Check watch.templates setting for views directory
+	if info.Name() == "views" && !h.paths.Config.BoolDefault("watch.templates", true) {
+		return false
+	}
+
+	// Check watch.route setting for routes directory (conf)
+	if info.Name() == "routes" && !h.paths.Config.BoolDefault("watch.route", true) {
+		return false
+	}
+
+	return true
 }
 
-// WatchFile method returns true given filename HasSuffix of ".go"
+// WatchFile method returns true given filename HasSuffix of ".go" or is "routes"
+// (if watch.route=true) or is in views directory (if watch.templates=true)
 // otheriwse false - implements revel.DiscerningListener.
 func (h *Harness) WatchFile(filename string) bool {
-	return strings.HasSuffix(filename, ".go")
+	// Always watch .go files
+	if strings.HasSuffix(filename, ".go") {
+		return true
+	}
+
+	// Watch routes file if watch.route=true
+	if filepath.Base(filename) == "routes" && h.paths.Config.BoolDefault("watch.route", true) {
+		return true
+	}
+
+	// Watch template files if watch.templates=true
+	if strings.Contains(filename, string(filepath.Separator)+"views"+string(filepath.Separator)) &&
+		h.paths.Config.BoolDefault("watch.templates", true) {
+		return true
+	}
+
+	return false
 }
 
 // Run the harness, which listens for requests and proxies them to the app
