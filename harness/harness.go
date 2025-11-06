@@ -219,7 +219,19 @@ func (h *Harness) Refresh() (err *utils.SourceError) {
 	}
 
 	h.ranOnce = true
-	fmt.Printf("\nTime to recompile %s\n", time.Since(t).String())
+	elapsed := time.Since(t)
+
+	if err == nil {
+		// 成功時のメッセージ
+		fmt.Printf("\n[SUCCESS] Rebuild completed successfully in %s\n", elapsed.Round(time.Millisecond).String())
+		if h.useProxy {
+			fmt.Printf("[INFO] Application is ready at http://%s:%d\n\n", h.paths.HTTPAddr, h.paths.HTTPPort)
+		}
+	} else {
+		// エラー時のメッセージ
+		fmt.Printf("\n[ERROR] Rebuild failed in %s\n\n", elapsed.Round(time.Millisecond).String())
+	}
+
 	return
 }
 
