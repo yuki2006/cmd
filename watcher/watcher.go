@@ -151,6 +151,7 @@ func (w *Watcher) NotifyWhenUpdated(listener Listener, watcher *fsnotify.Watcher
 	for {
 		select {
 		case ev := <-watcher.Events:
+			utils.Logger.Info("Watcher: Event received in NotifyWhenUpdated", "file", ev.Name, "operation", ev.Op.String())
 			if w.rebuildRequired(ev, listener) {
 				if w.serial {
 					// Serialize listener.Refresh() calls.
@@ -190,10 +191,14 @@ func (w *Watcher) Notify() *utils.SourceError {
 
 		// Pull all pending events / errors from the watcher.
 		refresh := false
+		eventCount := 0
 		for {
 			select {
 			case ev := <-watcher.Events:
+				eventCount++
+				utils.Logger.Info("Watcher:Notify event detected", "file", ev.Name, "operation", ev.Op.String(), "eventCount", eventCount)
 				if w.rebuildRequired(ev, listener) {
+					utils.Logger.Info("Watcher:Notify rebuild required for event", "file", ev.Name)
 					refresh = true
 				}
 				continue
@@ -204,6 +209,7 @@ func (w *Watcher) Notify() *utils.SourceError {
 			}
 			break
 		}
+		utils.Logger.Info("Watcher:Notify event summary", "watcher index", i, "eventCount", eventCount, "refresh", refresh)
 
 		utils.Logger.Info("Watcher:Notify refresh state", "Current Index", i, " last error index", w.lastError,
 			"force", w.forceRefresh, "refresh", refresh, "lastError", w.lastError == i)
@@ -237,8 +243,8 @@ func (w *Watcher) notifyInProcess(listener Listener) (err *utils.SourceError) {
 	func() {
 		w.timerMutex.Lock()
 		defer w.timerMutex.Unlock()
-		// If we are in the process of a rebuild, forceRefresh will always be true
-		w.forceRefresh = true
+		// Don't set forceRefresh = true here to avoid infinite rebuild loop
+		// The timer mechanism already handles concurrent rebuild requests
 		if w.refreshTimer != nil {
 			utils.Logger.Info("Found existing timer running, resetting")
 			w.refreshTimer.Reset(w.refreshInterval)
@@ -282,13 +288,22 @@ func (w *Watcher) notifyInProcess(listener Listener) (err *utils.SourceError) {
 func (w *Watcher) rebuildRequired(ev fsnotify.Event, listener Listener) bool {
 	// Ignore changes to dotfiles.
 	if strings.HasPrefix(filepath.Base(ev.Name), ".") {
+		utils.Logger.Info("Watcher: Skipping dotfile", "file", ev.Name)
 		return false
 	}
 
 	if dl, ok := listener.(DiscerningListener); ok {
-		if !dl.WatchFile(ev.Name) || ev.Op&fsnotify.Chmod == fsnotify.Chmod {
+		if !dl.WatchFile(ev.Name) {
+			utils.Logger.Info("Watcher: WatchFile returned false", "file", ev.Name)
+			return false
+		}
+		if ev.Op&fsnotify.Chmod == fsnotify.Chmod {
+			utils.Logger.Info("Watcher: Skipping Chmod event", "file", ev.Name)
 			return false
 		}
 	}
+
+	// デバッグ: 変更されたファイルをログ出力
+	utils.Logger.Info("Watcher: Rebuild required", "file", ev.Name, "operation", ev.Op.String())
 	return true
 }

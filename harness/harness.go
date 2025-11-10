@@ -126,6 +126,9 @@ func (h *Harness) renderError(iw http.ResponseWriter, ir *http.Request, err erro
 // ServeHTTP handles all requests.
 // It checks for changes to app, rebuilds if necessary, and forwards the request.
 func (h *Harness) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Log incoming request
+	utils.Logger.Info("ServeHTTP called", "path", r.URL.Path, "method", r.Method)
+
 	// Don't rebuild the app for favicon requests.
 	if lastRequestHadError > 0 && r.URL.Path == "/favicon.ico" {
 		return
@@ -245,7 +248,13 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 	defer h.mutex.Unlock()
 
 	if h.app != nil {
-		h.app.Kill()
+		if killErr := h.app.Kill(); killErr != nil {
+			utils.Logger.Error("Failed to kill previous app instance", "error", killErr)
+			return &utils.SourceError{
+				Title:       "Process Termination Failed",
+				Description: fmt.Sprintf("Failed to terminate previous app instance (PID may still be running): %v", killErr),
+			}
+		}
 	}
 
 	utils.Logger.Info("Rebuild Called")
@@ -302,6 +311,7 @@ func (h *Harness) refresh() (err *utils.SourceError) {
 }
 
 // WatchDir method returns false to file matches with doNotWatch
+// or if dir is in watch.ignore list
 // or if watch.templates=false and dir is "views"
 // otheriwse true.
 func (h *Harness) WatchDir(info os.FileInfo) bool {
@@ -310,13 +320,20 @@ func (h *Harness) WatchDir(info os.FileInfo) bool {
 		return false
 	}
 
-	// Check watch.templates setting for views directory
-	if info.Name() == "views" && !h.paths.Config.BoolDefault("watch.templates", true) {
-		return false
+	// Check watch.ignore setting for custom ignored directories (comma-separated)
+	ignoreList := h.paths.Config.StringDefault("watch.ignore", "")
+	if ignoreList != "" {
+		ignoreDirs := strings.Split(ignoreList, ",")
+		for _, dir := range ignoreDirs {
+			trimmedDir := strings.TrimSpace(dir)
+			if trimmedDir != "" && info.Name() == trimmedDir {
+				return false
+			}
+		}
 	}
 
-	// Check watch.route setting for routes directory (conf)
-	if info.Name() == "routes" && !h.paths.Config.BoolDefault("watch.route", true) {
+	// Check watch.templates setting for views directory
+	if info.Name() == "views" && !h.paths.Config.BoolDefault("watch.templates", true) {
 		return false
 	}
 
@@ -395,7 +412,9 @@ func (h *Harness) Run() {
 	<-ch
 	// Kill the app and exit
 	if h.app != nil {
-		h.app.Kill()
+		if killErr := h.app.Kill(); killErr != nil {
+			utils.Logger.Error("Failed to kill app during shutdown", "error", killErr)
+		}
 	}
 	os.Exit(1)
 }

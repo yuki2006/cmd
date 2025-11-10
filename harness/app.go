@@ -50,8 +50,8 @@ func (a *App) Cmd(runMode string) AppCmd {
 }
 
 // Kill the last app command returned.
-func (a *App) Kill() {
-	a.cmd.Kill()
+func (a *App) Kill() error {
+	return a.cmd.Kill()
 }
 
 // AppCmd manages the running of a Revel app server.
@@ -113,63 +113,104 @@ func (cmd AppCmd) Run(c *model.CommandConfig) {
 }
 
 // Kill terminates the app server if it's running.
-func (cmd AppCmd) Kill() {
-	if cmd.Cmd != nil && (cmd.ProcessState == nil || !cmd.ProcessState.Exited()) {
-		// Windows appears to send the kill to all threads, shutting down the
-		// server before this can, this check will ensure the process is still running
-		if _, err := os.FindProcess(cmd.Process.Pid); err != nil {
-			// Server has already exited
-			utils.Logger.Info("Server not running revel server pid", "pid", cmd.Process.Pid)
-			return
-		}
+// Returns an error if the process could not be terminated after retries.
+func (cmd AppCmd) Kill() error {
+	if cmd.Cmd == nil || (cmd.ProcessState != nil && cmd.ProcessState.Exited()) {
+		return nil
+	}
 
-		// Wait for the shutdown channel
-		waitMutex := &sync.WaitGroup{}
-		waitMutex.Add(1)
-		ch := make(chan bool, 1)
-		go func() {
-			waitMutex.Done()
-			s, err := cmd.Process.Wait()
-			defer func() {
-				ch <- true
-			}()
-			if err != nil {
-				utils.Logger.Info("Wait failed for process ", "error", err)
-			}
-			if s != nil {
-				utils.Logger.Info("Revel App exited", "state", s.String())
-			}
+	// Windows appears to send the kill to all threads, shutting down the
+	// server before this can, this check will ensure the process is still running
+	if _, err := os.FindProcess(cmd.Process.Pid); err != nil {
+		// Server has already exited
+		utils.Logger.Info("Server not running revel server pid", "pid", cmd.Process.Pid)
+		return nil
+	}
+
+	// Wait for the shutdown channel
+	waitMutex := &sync.WaitGroup{}
+	waitMutex.Add(1)
+	ch := make(chan bool, 1)
+	go func() {
+		waitMutex.Done()
+		s, err := cmd.Process.Wait()
+		defer func() {
+			ch <- true
 		}()
-		// Wait for the channel to begin waiting
-		waitMutex.Wait()
-
-		// Send an interrupt signal to allow for a graceful shutdown
-		utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
-
-		err := cmd.Process.Signal(os.Interrupt)
-
 		if err != nil {
-			utils.Logger.Info(
-				"Revel app already exited.",
-				"processid", cmd.Process.Pid, "error", err,
-				"killerror", cmd.Process.Kill())
-			return
+			utils.Logger.Info("Wait failed for process ", "error", err)
+		}
+		if s != nil {
+			utils.Logger.Info("Revel App exited", "state", s.String())
+		}
+	}()
+	// Wait for the channel to begin waiting
+	waitMutex.Wait()
+
+	// Send an interrupt signal to allow for a graceful shutdown
+	utils.Logger.Info("Killing revel server pid", "pid", cmd.Process.Pid)
+
+	err := cmd.Process.Signal(os.Interrupt)
+
+	if err != nil {
+		utils.Logger.Info(
+			"Revel app already exited.",
+			"processid", cmd.Process.Pid, "error", err,
+			"killerror", cmd.Process.Kill())
+		return nil
+	}
+
+	// Use a timer to ensure that the process exits
+	utils.Logger.Info("Waiting to exit")
+	select {
+	case <-ch:
+		return nil
+	case <-time.After(60 * time.Second):
+		// Process didn't exit gracefully, retry with SIGKILL
+		utils.Logger.Warn("Revel app failed to exit in 60 seconds, attempting forceful termination with retry logic")
+
+		// Retry logic: attempt to kill the process up to 3 times
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			utils.Logger.Info("Kill attempt", "attempt", i+1, "of", maxRetries, "pid", cmd.Process.Pid)
+
+			killErr := cmd.Process.Kill()
+			if killErr != nil {
+				utils.Logger.Warn("Kill attempt failed", "attempt", i+1, "error", killErr)
+
+				// Check if process actually exited despite the error
+				if _, findErr := os.FindProcess(cmd.Process.Pid); findErr != nil {
+					utils.Logger.Info("Process no longer exists", "pid", cmd.Process.Pid)
+					return nil
+				}
+
+				// Wait before retry
+				if i < maxRetries-1 {
+					time.Sleep(2 * time.Second)
+				}
+				continue
+			}
+
+			// Wait a moment to confirm the process is actually terminated
+			time.Sleep(500 * time.Millisecond)
+
+			// Verify the process is actually gone
+			if _, findErr := os.FindProcess(cmd.Process.Pid); findErr != nil {
+				utils.Logger.Info("Process successfully terminated", "pid", cmd.Process.Pid, "attempt", i+1)
+				return nil
+			}
+
+			// Process still exists, wait before next retry
+			if i < maxRetries-1 {
+				utils.Logger.Warn("Process still running after kill signal", "pid", cmd.Process.Pid)
+				time.Sleep(2 * time.Second)
+			}
 		}
 
-		// Use a timer to ensure that the process exits
-		utils.Logger.Info("Waiting to exit")
-		select {
-		case <-ch:
-			return
-		case <-time.After(60 * time.Second):
-			// Kill the process
-			utils.Logger.Error(
-				"Revel app failed to exit in 60 seconds - killing.",
-				"processid", cmd.Process.Pid,
-				"killerror", cmd.Process.Kill())
-		}
-
-		utils.Logger.Info("Done Waiting to exit")
+		// All retries failed
+		finalErr := fmt.Errorf("failed to terminate process %d after %d attempts", cmd.Process.Pid, maxRetries)
+		utils.Logger.Error("Process termination failed", "pid", cmd.Process.Pid, "error", finalErr)
+		return finalErr
 	}
 }
 
